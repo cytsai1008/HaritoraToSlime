@@ -33,10 +33,8 @@ try:
     CONFIG = json.load(f)
 except:
     print(
-        "There was an issue loading haritoslime.json. Please check that there aren't any stray commas or misspellings."
-    )
-    print(
-        "If this issue persists, delete haritoslime.json and run HaritoSlime again to regenerate the config."
+        """There was an issue loading haritoslime.json. Please check that there aren't any stray commas or misspellings.
+        If this issue persists, delete haritoslime.json and run HaritoSlime again to regenerate the config."""
     )
     quit()
 
@@ -60,15 +58,15 @@ except:
 # TODO: rewrite to a config to support multiple trackers
 HaritoraPacket = namedtuple(
     "HaritoraPacket", "sensor_id, qw, qx, qy, qz, ax, ay, az"
-)  # container that holds the data of a given trackerID
-for i in range(0, 5):
-    globals()["sensor" + str(i) + "data"] = HaritoraPacket(
+)  # container that holds the data of a given tracker_id
+for i in range(0, TRACKER_COUNT):
+    globals()[f"sensor_{str(i)}_data"] = HaritoraPacket(
         0, 0, 0, 0, 0, 0, 0, 0
     )  # Create tracker data containers
 
 
 def build_handshake():
-    fw_string = "MoSlime"
+    fw_string = "HaritoSlime"
     buffer = b"\x00\x00\x00\x03"  # packet 3 header
     buffer += struct.pack(">Q", PACKET_COUNTER)  # packet counter
     buffer += struct.pack(">I", 0)  # board ID
@@ -80,27 +78,27 @@ def build_handshake():
     buffer += struct.pack(
         str(len(fw_string)) + "s", fw_string.encode("UTF-8")
     )  # fw string
-    buffer += struct.pack("6s", b"\x49\x4C\x4F\x56\x45\x50")  # MAC address
+    buffer += struct.pack("6s", "111111".encode("UTF-8"))  # MAC address
     buffer += struct.pack("B", 255)
     return buffer
 
 
-def add_imu(trackerID):
+def add_imu(tracker_id):
     global PACKET_COUNTER
     buffer = b"\x00\x00\x00\x0f"  # packet 15 header
     buffer += struct.pack(">Q", PACKET_COUNTER)  # packet counter
     buffer += struct.pack(
-        "B", trackerID
+        "B", tracker_id
     )  # tracker id (shown as IMU Tracker #x in SlimeVR)
     buffer += struct.pack("B", 0)  # sensor status
     buffer += struct.pack("B", 0)  # sensor type
     sock.sendto(buffer, (SLIME_IP, SLIME_PORT))
-    print("Add IMU: " + str(trackerID))
+    print("Add IMU: " + str(tracker_id))
     PACKET_COUNTER += 1
 
 
 def build_rotation_packet(qw: float, qx: float, qy: float, qz: float, tracker_id: int):
-    # qw,qx,qy,qz: parts of a quaternion / trackerID: Tracker ID
+    # qw,qx,qy,qz: parts of a quaternion / tracker_id: Tracker ID
     buffer = b"\x00\x00\x00\x11"  # packet 17 header
     buffer += struct.pack(">Q", PACKET_COUNTER)  # packet counter
     buffer += struct.pack(
@@ -114,12 +112,12 @@ def build_rotation_packet(qw: float, qx: float, qy: float, qz: float, tracker_id
     return buffer
 
 
-def build_accel_packet(ax: float, ay: float, az: float, trackerID: int):
+def build_accel_packet(ax: float, ay: float, az: float, tracker_id: int):
     buffer = b"\x00\x00\x00\x04"  # packet 4 header
     buffer += struct.pack(">Q", PACKET_COUNTER)  # packet counter
     buffer += struct.pack(">fff", ax, ay, az)  # acceleration as x y z
     buffer += struct.pack(
-        "B", trackerID
+        "B", tracker_id
     )  # tracker id (shown as IMU Tracker #x in SlimeVR)
     return buffer
 
@@ -132,7 +130,7 @@ def sendAllIMUs(
     while True:
         for z in range(TPS):
             for i in range(len(Tracker_ID)):
-                sensor = globals()["sensor" + str(i) + "data"]
+                sensor = globals()[f"sensor_{str(i)}_data"]
                 rot = build_rotation_packet(
                     sensor.qw, sensor.qx, sensor.qy, sensor.qz, i
                 )
@@ -147,7 +145,7 @@ def sendAllIMUs(
 """
 
 
-def tracker_handler(address, x, y, z):
+def tracker_handler(address: str, x: float, y: float, z: float):
     if address.split("/")[3] == "head":
         Tracker_ID = 0
     else:
@@ -165,7 +163,7 @@ def tracker_handler(address, x, y, z):
         )
 
 
-def euler_to_quaternion(roll, pitch, yaw):
+def euler_to_quaternion(roll: float, pitch: float, yaw: float) -> tuple:
     # Convert degrees to radians
     roll = math.radians(roll)
     pitch = math.radians(pitch)
@@ -184,7 +182,7 @@ def euler_to_quaternion(roll, pitch, yaw):
         roll / 2
     ) * math.sin(pitch / 2) * math.sin(yaw / 2)
 
-    return [qw, qx, qy, qz]
+    return qw, qx, qy, qz
 
 
 if __name__ == "__main__":
@@ -193,7 +191,7 @@ if __name__ == "__main__":
     dispatcher = osc_server.Dispatcher()
     dispatcher.map("/tracking/trackers/*", tracker_handler)
 
-    server = osc_server.BlockingOSCUDPServer(("127.0.0.1", 12345), dispatcher)
+    server = osc_server.ThreadingOSCUDPServer(("127.0.0.1", 12345), dispatcher)
     print(f"Starting OSC on {server.server_address}")
     time.sleep(0.1)
     server.serve_forever()
@@ -250,7 +248,7 @@ if __name__ == "__main__":
     # Add additional IMUs. SlimeVR only supports one "real" tracker per IP, so the workaround is to make all the
     # trackers appear as extensions of the first tracker.
     for i in range(TRACKER_COUNT):
-        for z in range(3):
+        for _ in range(3):
             # slimevr has been missing "add IMU" packets so we just send them 3 times to make sure they get through
             add_imu(i)
 
