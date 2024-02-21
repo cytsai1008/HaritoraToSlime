@@ -55,13 +55,12 @@ except:
     quit()
 
 
-# TODO: rewrite to a config to support multiple trackers
 HaritoraPacket = namedtuple(
-    "HaritoraPacket", "sensor_id, qw, qx, qy, qz, ax, ay, az"
+    "HaritoraPacket", "qw, qx, qy, qz, ax, ay, az"
 )  # container that holds the data of a given tracker_id
 for i in range(0, TRACKER_COUNT):
     globals()[f"sensor_{str(i)}_data"] = HaritoraPacket(
-        0, 0, 0, 0, 0, 0, 0, 0
+        0, 0, 0, 0, 0, 0, 0
     )  # Create tracker data containers
 
 
@@ -122,27 +121,26 @@ def build_accel_packet(ax: float, ay: float, az: float, tracker_id: int):
     return buffer
 
 
-"""
-def sendAllIMUs(
-    Tracker_ID,
-):  # Tracker_ID: Table of Tracker ID. Just used to get the number of trackers
-    global TPS, PACKET_COUNTER
+def sendAllIMUs(tracker_id: int):
+    # tracker_id: Table of Tracker ID. Just used to get the number of trackers
+    global PACKET_COUNTER
     while True:
         for z in range(TPS):
-            for i in range(len(Tracker_ID)):
-                sensor = globals()[f"sensor_{str(i)}_data"]
+            for _ in range(tracker_id):
+                sensor = globals()[f"sensor_{str(tracker_id)}_data"]
                 rot = build_rotation_packet(
-                    sensor.qw, sensor.qx, sensor.qy, sensor.qz, i
+                    sensor.qw, sensor.qx, sensor.qy, sensor.qz, tracker_id
                 )
+                accel = build_accel_packet(sensor.ax, sensor.ay, sensor.az, tracker_id)
                 sock.sendto(rot, (SLIME_IP, SLIME_PORT))
                 PACKET_COUNTER += 1
-                # Accel is still technically not ready yet (it doesn't rotate with the axes) but it's enough for
+                # Accel is still technically not ready yet (it doesn't rotate with the axes), but it's enough for
                 # features like tap detection
-                accel = build_accel_packet(sensor.ax, sensor.ay, sensor.az, i)
+                # accel = build_accel_packet(sensor.ax, sensor.ay, sensor.az, i)
                 sock.sendto(accel, (SLIME_IP, SLIME_PORT))
                 PACKET_COUNTER += 1
-            time.sleep(1 / TPS)
-"""
+            # TODO: change to a global value for checking current msec over last time + TPS
+            # time.sleep(1 / TPS)
 
 
 def tracker_handler(address: str, x: float, y: float, z: float):
@@ -153,13 +151,23 @@ def tracker_handler(address: str, x: float, y: float, z: float):
     data_type = address.split("/")[4]
     if data_type.find("position"):
         # TODO: need to convert to acceleration before sending
-        # print(f"position: {Tracker_ID} {x} {y} {z}")
-        # if Tracker_ID == "head":
-        pass
+        # print(f"position: {tracker_id} {x} {y} {z}")
+        # if tracker_id == "head":
+        # TODO: Acceleration is not ready yet
+        globals()[f"sensor_{str(Tracker_ID)}_data"] = HaritoraPacket(
+            0, 0, 0, 0, 0, 0, 0
+        )
     else:
         quaternion = euler_to_quaternion(x, y, z)
-        rot = build_rotation_packet(
-            quaternion[0], quaternion[1], quaternion[2], quaternion[3], Tracker_ID
+        sensor = globals()[f"sensor_{str(Tracker_ID)}_data"]
+        globals()[f"sensor_{str(Tracker_ID)}_data"] = HaritoraPacket(
+            quaternion[0],
+            quaternion[1],
+            quaternion[2],
+            quaternion[3],
+            sensor.ax,
+            sensor.ay,
+            sensor.az,
         )
 
 
