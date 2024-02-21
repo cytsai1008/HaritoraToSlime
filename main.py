@@ -2,6 +2,7 @@ import json
 import math
 import socket
 import struct
+import threading
 import time
 from collections import namedtuple
 
@@ -60,7 +61,7 @@ HaritoraPacket = namedtuple(
 )  # container that holds the data of a given tracker_count
 NEXT_MSEC = 0  # used to keep track of the last time we sent a packet
 
-for i in range(0, TRACKER_COUNT):
+for i in range(0, TRACKER_COUNT + 1):
     globals()[f"sensor_{str(i)}_data"] = HaritoraPacket(
         0, 0, 0, 0, 0, 0, 0
     )  # Create tracker data containers
@@ -202,7 +203,8 @@ if __name__ == "__main__":
     server = osc_server.ThreadingOSCUDPServer(("127.0.0.1", 12345), dispatcher)
     print(f"Starting OSC on {server.server_address}")
     time.sleep(0.1)
-    server.serve_forever()
+    osc_server_thread = threading.Thread(target=server.serve_forever)
+    osc_server_thread.start()
 
     # TODO: read more from moslime.py, L336, not finished, yet.
     if AUTODISCOVER:
