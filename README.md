@@ -9,3 +9,8 @@
 4. Open `HaritoraX App` on iOS or `haritorax` on Android, and click `Start` (for more details, read the HaritoraX manual)
 5. Run `python main.py` or `python3 main.py` (if you are using Linux)
 6. ~~Hope nothing went wrong~~
+
+
+### Thanks
+https://github.com/moslime/moslime  
+https://github.com/colasama/ReboSlime  
