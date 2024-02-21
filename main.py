@@ -125,7 +125,7 @@ def build_accel_packet(ax: float, ay: float, az: float, tracker_id: int):
 
 def sendAllIMUs(tracker_count: int):
     global PACKET_COUNTER, NEXT_MSEC
-    if NEXT_MSEC - time.time_ns()/1000000 > 0:
+    if NEXT_MSEC - time.time_ns() / 1000000 > 0:
         return
     for tracker_id in range(tracker_count):
         sensor = globals()[f"sensor_{str(tracker_id)}_data"]
@@ -138,7 +138,7 @@ def sendAllIMUs(tracker_count: int):
         accel = build_accel_packet(sensor.ax, sensor.ay, sensor.az, i)
         sock.sendto(accel, (SLIME_IP, SLIME_PORT))
         PACKET_COUNTER += 1
-    NEXT_MSEC = time.time_ns()/1000000 + 1000 / TPS
+    NEXT_MSEC = time.time_ns() / 1000000 + 1000 / TPS
 
 
 def tracker_handler(address: str, x: float, y: float, z: float):
