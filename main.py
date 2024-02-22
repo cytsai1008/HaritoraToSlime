@@ -27,7 +27,7 @@ except:
     with open("haritoslime.json", "w") as f:
         json.dump(ref_config, f, indent=4)
     print(
-        "haritoslime.json not found.\n"
+        "haritoslime.json not Found.\n"
         "A new config file has been created,\n"
         "please edit it before attempting to run HaritoSlime again."
     )
@@ -90,7 +90,7 @@ def add_imu(tracker_id):
     buffer += struct.pack("B", tracker_id)  # tracker id (shown as IMU Tracker #x in SlimeVR)
     buffer += struct.pack("B", 0)  # sensor status
     buffer += struct.pack("B", 0)  # sensor type
-    sock.sendto(buffer, (SLIME_IP, SLIME_PORT))
+    SOCK.sendto(buffer, (SLIME_IP, SLIME_PORT))
     print("Add IMU: " + str(tracker_id))
     PACKET_COUNTER += 1
 
@@ -130,13 +130,15 @@ def sendAllIMUs(tracker_count: int):
 def send_socket(buffer: bytes):
     global PACKET_COUNTER
     try:
-        sock.sendto(buffer, (SLIME_IP, SLIME_PORT))
+        SOCK.sendto(buffer, (SLIME_IP, SLIME_PORT))
         PACKET_COUNTER += 1
     except:
+        # I hope this can avoid failing when timeout and disconnected
+        # TODO: haven't tested
         handshake = build_handshake()
-        sock.sendto(handshake, (SLIME_IP, SLIME_PORT))
+        SOCK.sendto(handshake, (SLIME_IP, SLIME_PORT))
         PACKET_COUNTER += 1
-        sock.sendto(buffer, (SLIME_IP, SLIME_PORT))
+        SOCK.sendto(buffer, (SLIME_IP, SLIME_PORT))
         PACKET_COUNTER += 1
 
 
@@ -189,14 +191,14 @@ def euler_to_quaternion(roll: float, pitch: float, yaw: float) -> tuple:
 
 
 if __name__ == "__main__":
-    dispatcher = osc_server.Dispatcher()
-    dispatcher.map("/tracking/trackers/*", tracker_handler)
-    server = osc_server.ThreadingOSCUDPServer(("127.0.0.1", 12345), dispatcher)
-    print(f"Starting OSC on {server.server_address}")
+    Disp = osc_server.Dispatcher()
+    Disp.map("/tracking/trackers/*", tracker_handler)
+    OSC_Server = osc_server.ThreadingOSCUDPServer(("127.0.0.1", 12345), Disp)
+    print(f"Starting OSC on {OSC_Server.server_address}")
 
     time.sleep(0.1)
-    osc_server_thread = threading.Thread(target=server.serve_forever)
-    osc_server_thread.start()
+    OSC_Server_Thread = threading.Thread(target=OSC_Server.serve_forever)
+    OSC_Server_Thread.start()
 
     # TODO: read more from moslime.py, L336, not finished, yet.
     if AUTODISCOVER:
@@ -216,29 +218,29 @@ if __name__ == "__main__":
         )
 
     # Connected To SlimeVR Server
-    found = False
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Setup network socket
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # allow broadcasting on this socket
-    sock.bind(("0.0.0.0", 9696))  # listen on port 9696 to avoid conflicts with slime
-    sock.settimeout(1)
+    Found = False
+    SOCK = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Setup network socket
+    SOCK.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # allow broadcasting on this socket
+    SOCK.bind(("0.0.0.0", 9696))  # listen on port 9696 to avoid conflicts with slime
+    SOCK.settimeout(1)
     Handshake = build_handshake()
     print("Searching for SlimeVR")
 
-    while not found:
+    while not Found:
         try:
             print("Searching...")
-            sock.sendto(Handshake, (SLIME_IP, SLIME_PORT))  # broadcast Handshake on all interfaces
-            data, src = sock.recvfrom(1024)
+            SOCK.sendto(Handshake, (SLIME_IP, SLIME_PORT))  # broadcast handshake on all interfaces
+            data, src = SOCK.recvfrom(1024)
 
             if "Hey OVR =D" in str(data.decode()):  # SlimeVR responds with a packet containing "Hey OVR =D"
-                found = True
+                Found = True
                 SLIME_IP = src[0]
                 SLIME_PORT = src[1]
         except:
             pass
 
     print("Found SlimeVR at " + str(SLIME_IP) + ":" + str(SLIME_PORT))
-    del Handshake
+    del Handshake, Found
     PACKET_COUNTER += 1
     time.sleep(0.1)
 
@@ -248,5 +250,6 @@ if __name__ == "__main__":
         for _ in range(3):
             # slimevr has been missing "add IMU" packets, so we just send them 3 times to make sure they get through
             add_imu(i)
+    del i
 
     time.sleep(0.1)
