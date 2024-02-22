@@ -220,8 +220,7 @@ if __name__ == "__main__":
         print(
             "Using SlimeVR IP from config. "
             'If this gets stuck at "Searching...", '
-            "make sure you have the right IP set in "
-            "moslime.json"
+            "make sure you have the right IP set in haritoslime.json."
         )
 
     # Connected To SlimeVR Server

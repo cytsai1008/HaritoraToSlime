@@ -1,6 +1,7 @@
-# HaritoraToSlime  
+# HaritoraToSlime
+
 > [!IMPORTANT]  
-> This is a WIP project, and it still not working properly yet.
+> This is a WIP project, and it's still not working properly yet.
 
 ## How to use
 1. Install SlimeVR
