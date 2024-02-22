@@ -128,7 +128,7 @@ def sendAllIMUs(tracker_count: int):
     global PACKET_COUNTER, NEXT_MSEC
     if NEXT_MSEC - time.time_ns() / 1000000 > 0:
         return
-    for tracker_id in range(tracker_count):
+    for tracker_id in range(1, tracker_count + 1):
         sensor = globals()[f"sensor_{str(tracker_id)}_data"]
         rot = build_rotation_packet(
             sensor.qw, sensor.qx, sensor.qy, sensor.qz, tracker_id
@@ -257,9 +257,9 @@ if __name__ == "__main__":
 
     # Add additional IMUs. SlimeVR only supports one "real" tracker per IP, so the workaround is to make all the
     # trackers appear as extensions of the first tracker.
-    for i in range(TRACKER_COUNT):
+    for i in range(1, TRACKER_COUNT + 1):
         for _ in range(3):
             # slimevr has been missing "add IMU" packets so we just send them 3 times to make sure they get through
             add_imu(i)
 
-    time.sleep(0.5)
+    time.sleep(0.1)
