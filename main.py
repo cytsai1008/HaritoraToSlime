@@ -23,11 +23,12 @@ PACKET_COUNTER = 0  # global packet counter. MUST be incremented every time a pa
 
 try:
     f = open("haritoslime.json")
+    #TODO: change to os.path
 except:
     with open("haritoslime.json", "w") as f:
         json.dump(ref_config, f, indent=4)
     print(
-        "haritoslime.json not Found.\n"
+        "haritoslime.json not found.\n"
         "A new config file has been created,\n"
         "please edit it before attempting to run HaritoSlime again."
     )
@@ -35,6 +36,7 @@ except:
 
 try:
     CONFIG = json.load(f)
+    #TODO: rewrite to with open
 except:
     print(
         "There was an issue loading haritoslime.json.\n"
