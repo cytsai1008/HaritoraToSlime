@@ -27,7 +27,8 @@ except:
     with open("haritoslime.json", "w") as f:
         json.dump(ref_config, f, indent=4)
     print(
-        "haritoslime.json not found. A new config file has been created, "
+        "haritoslime.json not found.\n"
+        "A new config file has been created,\n"
         "please edit it before attempting to run HaritoSlime again."
     )
     quit()
@@ -36,8 +37,9 @@ try:
     CONFIG = json.load(f)
 except:
     print(
-        """There was an issue loading haritoslime.json. Please check that there aren't any stray commas or misspellings.
-        If this issue persists, delete haritoslime.json and run HaritoSlime again to regenerate the config."""
+        "There was an issue loading haritoslime.json.\n"
+        "Please check that there aren't any stray commas or misspellings.\n"
+        "If this issue persists, delete haritoslime.json and run HaritoSlime again to regenerate the config."
     )
     quit()
 
@@ -57,9 +59,8 @@ except:
 
 del f
 
-HaritoraPacket = namedtuple(
-    "HaritoraPacket", "qw, qx, qy, qz, ax, ay, az"
-)  # container that holds the data of a given tracker_count
+HaritoraPacket = namedtuple("HaritoraPacket", "qw, qx, qy, qz, ax, ay, az")
+# container that holds the data of a given tracker_count
 
 for i in range(0, TRACKER_COUNT + 1):
     globals()[f"sensor_{str(i)}_data"] = HaritoraPacket(0, 0, 0, 0, 0, 0, 0)  # Create tracker data containers
@@ -121,11 +122,22 @@ def sendAllIMUs(tracker_count: int):
         sensor = globals()[f"sensor_{str(tracker_id)}_data"]
         rot = build_rotation_packet(sensor.qw, sensor.qx, sensor.qy, sensor.qz, tracker_id)
         accel = build_accel_packet(sensor.ax, sensor.ay, sensor.az, tracker_id)
-        sock.sendto(rot, (SLIME_IP, SLIME_PORT))
-        PACKET_COUNTER += 1
-        sock.sendto(accel, (SLIME_IP, SLIME_PORT))
-        PACKET_COUNTER += 1
+        send_socket(rot)
+        send_socket(accel)
     NEXT_MSEC = time.time_ns() / 1000000 + 1000 / TPS
+
+
+def send_socket(buffer: bytes):
+    global PACKET_COUNTER
+    try:
+        sock.sendto(buffer, (SLIME_IP, SLIME_PORT))
+        PACKET_COUNTER += 1
+    except:
+        handshake = build_handshake()
+        sock.sendto(handshake, (SLIME_IP, SLIME_PORT))
+        PACKET_COUNTER += 1
+        sock.sendto(buffer, (SLIME_IP, SLIME_PORT))
+        PACKET_COUNTER += 1
 
 
 def tracker_handler(address: str, x: float, y: float, z: float):
@@ -209,13 +221,13 @@ if __name__ == "__main__":
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # allow broadcasting on this socket
     sock.bind(("0.0.0.0", 9696))  # listen on port 9696 to avoid conflicts with slime
     sock.settimeout(1)
-    handshake = build_handshake()
+    Handshake = build_handshake()
     print("Searching for SlimeVR")
 
     while not found:
         try:
             print("Searching...")
-            sock.sendto(handshake, (SLIME_IP, SLIME_PORT))  # broadcast handshake on all interfaces
+            sock.sendto(Handshake, (SLIME_IP, SLIME_PORT))  # broadcast Handshake on all interfaces
             data, src = sock.recvfrom(1024)
 
             if "Hey OVR =D" in str(data.decode()):  # SlimeVR responds with a packet containing "Hey OVR =D"
@@ -223,9 +235,10 @@ if __name__ == "__main__":
                 SLIME_IP = src[0]
                 SLIME_PORT = src[1]
         except:
-            time.sleep(0)
+            pass
 
     print("Found SlimeVR at " + str(SLIME_IP) + ":" + str(SLIME_PORT))
+    del Handshake
     PACKET_COUNTER += 1
     time.sleep(0.1)
 
