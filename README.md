@@ -14,7 +14,9 @@
 
 ### Notes
 I think that it can also work with other FBT works with OSC, but I don't have other devices to test it.  
-Feel free to open an issue to let me know if you find out it works on your devices.
+Feel free to open an issue to let me know if you find out it works on your devices.  
+
+Need time to reverse engineering about https://github.com/SlimeVR/SlimeVR-Tracker-ESP/blob/main/src/network/connection.cpp to find out how to optimize the sockets
 
 ### Thanks
 https://github.com/moslime/moslime  
