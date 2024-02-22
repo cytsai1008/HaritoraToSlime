@@ -1,5 +1,4 @@
 import json
-import math
 import socket
 import struct
 import threading
@@ -19,6 +18,8 @@ ref_config = {  # Reference config, used when haritoslime.json is missing
     "tps": 150,
     "tracker_count": 5,
 }
+NEXT_MSEC = 0  # used to keep track of the last time we sent a packet
+PACKET_COUNTER = 0  # global packet counter. MUST be incremented every time a packet is sent or slime gets mad
 
 try:
     f = open("haritoslime.json")
@@ -26,8 +27,8 @@ except:
     with open("haritoslime.json", "w") as f:
         json.dump(ref_config, f, indent=4)
     print(
-        "haritoslime.json not found. A new config file has been created, please edit it before attempting to run "
-        "HaritoSlime again."
+        "haritoslime.json not found. A new config file has been created, "
+        "please edit it before attempting to run HaritoSlime again."
     )
     quit()
 
@@ -50,22 +51,19 @@ try:
 except:
     with open("haritoslime.json", "w") as f:
         json.dump(ref_config, f, indent=4)
-    print(
-        "One or more options were missing from haritoslime.json. The file has been recreated."
-    )
+    print("One or more options were missing from haritoslime.json. The file has been recreated.")
     print("Please check the file then try running HariSlime again.")
     quit()
 
+del f
 
 HaritoraPacket = namedtuple(
     "HaritoraPacket", "qw, qx, qy, qz, ax, ay, az"
 )  # container that holds the data of a given tracker_count
-NEXT_MSEC = 0  # used to keep track of the last time we sent a packet
 
 for i in range(0, TRACKER_COUNT + 1):
-    globals()[f"sensor_{str(i)}_data"] = HaritoraPacket(
-        0, 0, 0, 0, 0, 0, 0
-    )  # Create tracker data containers
+    globals()[f"sensor_{str(i)}_data"] = HaritoraPacket(0, 0, 0, 0, 0, 0, 0)  # Create tracker data containers
+del i
 
 
 def build_handshake():
@@ -78,9 +76,7 @@ def build_handshake():
     buffer += struct.pack(">III", 0, 0, 0)  # IMU info
     buffer += struct.pack(">I", 0)  # Build
     buffer += struct.pack("B", len(fw_string))  # length of fw string
-    buffer += struct.pack(
-        str(len(fw_string)) + "s", fw_string.encode("UTF-8")
-    )  # fw string
+    buffer += struct.pack(str(len(fw_string)) + "s", fw_string.encode("UTF-8"))  # fw string
     buffer += struct.pack("6s", "111111".encode("UTF-8"))  # MAC address
     buffer += struct.pack("B", 255)
     return buffer
@@ -90,9 +86,7 @@ def add_imu(tracker_id):
     global PACKET_COUNTER
     buffer = b"\x00\x00\x00\x0f"  # packet 15 header
     buffer += struct.pack(">Q", PACKET_COUNTER)  # packet counter
-    buffer += struct.pack(
-        "B", tracker_id
-    )  # tracker id (shown as IMU Tracker #x in SlimeVR)
+    buffer += struct.pack("B", tracker_id)  # tracker id (shown as IMU Tracker #x in SlimeVR)
     buffer += struct.pack("B", 0)  # sensor status
     buffer += struct.pack("B", 0)  # sensor type
     sock.sendto(buffer, (SLIME_IP, SLIME_PORT))
@@ -104,14 +98,10 @@ def build_rotation_packet(qw: float, qx: float, qy: float, qz: float, tracker_id
     # qw,qx,qy,qz: parts of a quaternion / tracker_count: Tracker ID
     buffer = b"\x00\x00\x00\x11"  # packet 17 header
     buffer += struct.pack(">Q", PACKET_COUNTER)  # packet counter
-    buffer += struct.pack(
-        "B", tracker_id
-    )  # tracker id (shown as IMU Tracker #x in SlimeVR)
+    buffer += struct.pack("B", tracker_id)  # tracker id (shown as IMU Tracker #x in SlimeVR)
     buffer += struct.pack("B", 1)  # data type (use is unknown)
     buffer += struct.pack(">ffff", qx, qz, qy, qw)  # quaternion as x,z,y,w
-    buffer += struct.pack(
-        "B", 0
-    )  # calibration info (seems to not be used by SlimeVR currently)
+    buffer += struct.pack("B", 0)  # calibration info (seems to not be used by SlimeVR currently)
     return buffer
 
 
@@ -119,9 +109,7 @@ def build_accel_packet(ax: float, ay: float, az: float, tracker_id: int):
     buffer = b"\x00\x00\x00\x04"  # packet 4 header
     buffer += struct.pack(">Q", PACKET_COUNTER)  # packet counter
     buffer += struct.pack(">fff", ax, ay, az)  # acceleration as x y z
-    buffer += struct.pack(
-        "B", tracker_id
-    )  # tracker id (shown as IMU Tracker #x in SlimeVR)
+    buffer += struct.pack("B", tracker_id)  # tracker id (shown as IMU Tracker #x in SlimeVR)
     return buffer
 
 
@@ -131,13 +119,10 @@ def sendAllIMUs(tracker_count: int):
         return
     for tracker_id in range(1, tracker_count + 1):
         sensor = globals()[f"sensor_{str(tracker_id)}_data"]
-        rot = build_rotation_packet(
-            sensor.qw, sensor.qx, sensor.qy, sensor.qz, tracker_id
-        )
+        rot = build_rotation_packet(sensor.qw, sensor.qx, sensor.qy, sensor.qz, tracker_id)
         accel = build_accel_packet(sensor.ax, sensor.ay, sensor.az, tracker_id)
         sock.sendto(rot, (SLIME_IP, SLIME_PORT))
         PACKET_COUNTER += 1
-        accel = build_accel_packet(sensor.ax, sensor.ay, sensor.az, i)
         sock.sendto(accel, (SLIME_IP, SLIME_PORT))
         PACKET_COUNTER += 1
     NEXT_MSEC = time.time_ns() / 1000000 + 1000 / TPS
@@ -154,9 +139,7 @@ def tracker_handler(address: str, x: float, y: float, z: float):
         # print(f"position: {tracker_count} {x} {y} {z}")
         # if tracker_count == "head":
         # TODO: Acceleration is not ready yet
-        globals()[f"sensor_{str(Tracker_ID)}_data"] = HaritoraPacket(
-            0, 0, 0, 0, 0, 0, 0
-        )
+        globals()[f"sensor_{str(Tracker_ID)}_data"] = HaritoraPacket(0, 0, 0, 0, 0, 0, 0)
     else:
         quaternion = euler_to_quaternion(x, y, z)
         sensor = globals()[f"sensor_{str(Tracker_ID)}_data"]
@@ -194,13 +177,11 @@ def euler_to_quaternion(roll: float, pitch: float, yaw: float) -> tuple:
 
 
 if __name__ == "__main__":
-    PACKET_COUNTER = 0  # global packet counter. MUST be incremented every time a packet is sent or slime gets mad
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Setup network socket
     dispatcher = osc_server.Dispatcher()
     dispatcher.map("/tracking/trackers/*", tracker_handler)
-
     server = osc_server.ThreadingOSCUDPServer(("127.0.0.1", 12345), dispatcher)
     print(f"Starting OSC on {server.server_address}")
+
     time.sleep(0.1)
     osc_server_thread = threading.Thread(target=server.serve_forever)
     osc_server_thread.start()
@@ -209,7 +190,9 @@ if __name__ == "__main__":
     if AUTODISCOVER:
         SLIME_IP = "255.255.255.255"
         print(
-            """Autodiscovery enabled.\nIf this gets stuck at "Searching...", \ntry disabling it and manually set the SlimeVR IP."""
+            "Autodiscovery enabled.\n"
+            'If this gets stuck at "Searching...", \n'
+            "try disabling it and manually set the SlimeVR IP."
         )
     else:
         SLIME_IP = CONFIG["slime_ip"]
@@ -222,25 +205,20 @@ if __name__ == "__main__":
 
     # Connected To SlimeVR Server
     found = False
-    sock.setsockopt(
-        socket.SOL_SOCKET, socket.SO_BROADCAST, 1
-    )  # allow broadcasting on this socket
-    handshake = build_handshake()
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Setup network socket
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # allow broadcasting on this socket
     sock.bind(("0.0.0.0", 9696))  # listen on port 9696 to avoid conflicts with slime
     sock.settimeout(1)
+    handshake = build_handshake()
     print("Searching for SlimeVR")
 
     while not found:
         try:
             print("Searching...")
-            sock.sendto(
-                handshake, (SLIME_IP, SLIME_PORT)
-            )  # broadcast handshake on all interfaces
+            sock.sendto(handshake, (SLIME_IP, SLIME_PORT))  # broadcast handshake on all interfaces
             data, src = sock.recvfrom(1024)
 
-            if "Hey OVR =D" in str(
-                data.decode("utf-8")
-            ):  # SlimeVR responds with a packet containing "Hey OVR =D"
+            if "Hey OVR =D" in str(data.decode()):  # SlimeVR responds with a packet containing "Hey OVR =D"
                 found = True
                 SLIME_IP = src[0]
                 SLIME_PORT = src[1]
@@ -255,7 +233,7 @@ if __name__ == "__main__":
     # trackers appear as extensions of the first tracker.
     for i in range(1, TRACKER_COUNT + 1):
         for _ in range(3):
-            # slimevr has been missing "add IMU" packets so we just send them 3 times to make sure they get through
+            # slimevr has been missing "add IMU" packets, so we just send them 3 times to make sure they get through
             add_imu(i)
 
     time.sleep(0.1)
