@@ -6,6 +6,7 @@ import threading
 import time
 from collections import namedtuple
 
+import numpy as np
 from pythonosc import osc_server
 
 
@@ -173,23 +174,21 @@ def tracker_handler(address: str, x: float, y: float, z: float):
 
 
 def euler_to_quaternion(roll: float, pitch: float, yaw: float) -> tuple:
-    # Convert degrees to radians
-    roll = math.radians(roll)
-    pitch = math.radians(pitch)
-    yaw = math.radians(yaw)
+    """
+    Convert an Euler angle to a quaternion.
 
-    qx = math.sin(roll / 2) * math.cos(pitch / 2) * math.cos(yaw / 2) - math.cos(
-        roll / 2
-    ) * math.sin(pitch / 2) * math.sin(yaw / 2)
-    qy = math.cos(roll / 2) * math.sin(pitch / 2) * math.cos(yaw / 2) + math.sin(
-        roll / 2
-    ) * math.cos(pitch / 2) * math.sin(yaw / 2)
-    qz = math.cos(roll / 2) * math.cos(pitch / 2) * math.sin(yaw / 2) - math.sin(
-        roll / 2
-    ) * math.sin(pitch / 2) * math.cos(yaw / 2)
-    qw = math.cos(roll / 2) * math.cos(pitch / 2) * math.cos(yaw / 2) + math.sin(
-        roll / 2
-    ) * math.sin(pitch / 2) * math.sin(yaw / 2)
+    Input
+      :param roll: The roll (rotation around x-axis) angle in radians.
+      :param pitch: The pitch (rotation around y-axis) angle in radians.
+      :param yaw: The yaw (rotation around z-axis) angle in radians.
+
+    Output
+      :return qx, qy, qz, qw: The orientation in quaternion [x,y,z,w] format
+    """
+    qx = np.sin(roll / 2) * np.cos(pitch / 2) * np.cos(yaw / 2) - np.cos(roll / 2) * np.sin(pitch / 2) * np.sin(yaw / 2)
+    qy = np.cos(roll / 2) * np.sin(pitch / 2) * np.cos(yaw / 2) + np.sin(roll / 2) * np.cos(pitch / 2) * np.sin(yaw / 2)
+    qz = np.cos(roll / 2) * np.cos(pitch / 2) * np.sin(yaw / 2) - np.sin(roll / 2) * np.sin(pitch / 2) * np.cos(yaw / 2)
+    qw = np.cos(roll / 2) * np.cos(pitch / 2) * np.cos(yaw / 2) + np.sin(roll / 2) * np.sin(pitch / 2) * np.sin(yaw / 2)
 
     return qw, qx, qy, qz
 
@@ -210,9 +209,7 @@ if __name__ == "__main__":
     if AUTODISCOVER:
         SLIME_IP = "255.255.255.255"
         print(
-            """Autodiscovery enabled. 
-            If this gets stuck at "Searching...", 
-            try disabling it and manually set the SlimeVR IP."""
+            """Autodiscovery enabled.\nIf this gets stuck at "Searching...", \ntry disabling it and manually set the SlimeVR IP."""
         )
     else:
         SLIME_IP = CONFIG["slime_ip"]
